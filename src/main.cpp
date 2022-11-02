@@ -1,12 +1,3 @@
-/*
- * g++ -o test test.cpp -lpthread
- * para ver hebras:
- * ps -eLf
- * pstree
- * top -H -u usuario (Shift + f para cambiar vista)
- * htop
- */
-
 #include <thread>
 #include <iostream>
 #include <fstream>
@@ -33,14 +24,12 @@ int main(int argc, char *argv[]) {
     cout << "Cantidad de hebras: ";
     cout << cantidadHebras << endl;
 
-//      if (atoi(argv[1]) <= 0) {
-//     cout << "numero paquetes debe ser > 0\n";
-//     return -1;
-//   }
+     if (atoi(argv[1]) <= 0) {
+        cout << "numero paquetes debe ser > 0\n";
+        return -1;
+    }
 
-//     int cantidadPaquetes = atoi(argv[1]);
-    int cantidadPaquetes = 5;
-
+    int cantidadPaquetes = atoi(argv[1]);
 
     std::string cantidadPaquetesString = std::to_string(cantidadPaquetes);
     string ping = "ping -q -c" + cantidadPaquetesString + " ";
@@ -49,8 +38,6 @@ int main(int argc, char *argv[]) {
             string pingMasIP = ping + arr[i];
             int x = system(pingMasIP.c_str());
         }
-    
-    
-
+        
 }
 
