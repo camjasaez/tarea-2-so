@@ -1,21 +1,22 @@
 #include <thread>
 #include <iostream>
 #include <fstream>
-using namespace std;
-#include <stdlib.h> // atoi
-#include <unistd.h> // sleep
+#include <stdlib.h> 
+#include <unistd.h> 
 #include <omp.h>
 #include <stdio.h>
 #include <vector>
 #include <string> 
+using namespace std;
 
-struct monitorizacion{             
-  string ip;        
-  string paquetesTransmitidos;
-  string paquetesRecibidos;
-  string paquetesPerdidos;
-  bool estado; //(UP (1) = Disponible, DOWN (0)= NO disponible)
-}; 
+class Monitorizacion {      
+  public:          
+    string ip;        
+    string paquetesTransmitidos;
+    string paquetesRecibidos;
+    string paquetesPerdidos;
+    bool estado; //(UP (1) = Disponible, DOWN (0)= NO disponible) 
+};
 
 int main(int argc, char *argv[]) {
 
@@ -40,7 +41,6 @@ int main(int argc, char *argv[]) {
     ifstream archivo(nombreArchivo.c_str());
     string linea;
     int cantidadHebras = 0;
-
     std::vector<std::string> arr;
     while (getline(archivo, linea)) {
         arr.push_back(linea);
@@ -49,19 +49,17 @@ int main(int argc, char *argv[]) {
     cout << "Cantidad de hebras: ";
     cout << cantidadHebras << endl;
 
-   
-
     std::string cantidadPaquetesString = std::to_string(cantidadPaquetes);
     string ping = "ping -q -c" + cantidadPaquetesString + " ";
     cout << "Ejecutando por hebras..." << endl;
     cout << "------------------------------------------" << endl;
     
-    std::vector<monitorizacion> monitorizaciones(cantidadHebras);
+    Monitorizacion monitorizaciones[cantidadHebras];
     std::string ip;
     std::string paquetesTransmitidos;
     std::string paquetesRecibidos;
     std::string paquetesPerdidos;
-    
+
     #pragma omp parallel for num_threads(cantidadHebras)
         for(int i = 0; i < cantidadHebras; i++){
             string pingMasIP = ping + arr[i] + " > logs/ping" + std::to_string(i) + ".txt";
