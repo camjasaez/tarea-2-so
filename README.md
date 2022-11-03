@@ -15,15 +15,20 @@ proyecto
 
 Se ejecuta:
 ```bash
-make run npaq=<numero de paquetes>
+make run na=<nombre del fichero> npaq=<numero de paquetes>
 ```
 
 ### Ejemplo
 
-`make run npaq=10 ` : _Corre el programa con 10 paquetes_
+`make run na=archivo_listado_ips.txt npaq=10 ` : _Corre el programa con 10 paquetes_
 
 npaq es una abreviacion a numero de paquetes que se van a enviar. 
+na es una abreviacion a nombre de archivo.
 
 ## Importante
 
-Para que el programa funcione correctamente, debe existir la carpeta `logs` en la raiz y ademas de que el archivo con el listado de las ips tambien este en la raiz del proyecto.
+- Para que el programa funcione correctamente, debe existir la carpeta `logs` en la raiz y ademas de que el archivo con el listado de las ips tambien este en la raiz del proyecto.
+
+- En linux, debe tener instalado g++ , make,  gdb y limbomp-dev
+
+- El fichero con las ip debe ser .txt

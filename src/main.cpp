@@ -18,7 +18,25 @@ struct monitorizacion{
 }; 
 
 int main(int argc, char *argv[]) {
-    string nombreArchivo = "archivo_listado_ips.txt";
+
+    if(argc != 3) {
+        cout << "Error: Numero de argumentos incorrecto" << endl;
+        cout << "Uso: " << argv[0] << " <nombre-fichero-de-ip>" <<" npaq=<cantidad-de-paquetes>" << endl;
+        exit(-1);
+    }
+
+    string nombreArchivo = argv[1];
+    if(nombreArchivo.find(".txt") > nombreArchivo.length()) {
+        cout << "Error: El fichero de ip no es un fichero de texto" << endl;
+        exit(-1);
+    }
+
+    if (atoi(argv[2]) <= 0) {
+        cout << "numero paquetes debe ser > 0\n";
+        return -1;
+    }
+    int cantidadPaquetes = atoi(argv[2]);
+
     ifstream archivo(nombreArchivo.c_str());
     string linea;
     int cantidadHebras = 0;
@@ -31,12 +49,7 @@ int main(int argc, char *argv[]) {
     cout << "Cantidad de hebras: ";
     cout << cantidadHebras << endl;
 
-     if (atoi(argv[1]) <= 0) {
-        cout << "numero paquetes debe ser > 0\n";
-        return -1;
-    }
-    
-    int cantidadPaquetes = atoi(argv[1]);
+   
 
     std::string cantidadPaquetesString = std::to_string(cantidadPaquetes);
     string ping = "ping -q -c" + cantidadPaquetesString + " ";
@@ -48,8 +61,8 @@ int main(int argc, char *argv[]) {
     std::string paquetesTransmitidos;
     std::string paquetesRecibidos;
     std::string paquetesPerdidos;
-    int i;
-    #pragma omp parallel for private(i) num_threads(cantidadHebras)
+    
+    #pragma omp parallel for num_threads(cantidadHebras)
         for(int i = 0; i < cantidadHebras; i++){
             string pingMasIP = ping + arr[i] + " > logs/ping" + std::to_string(i) + ".txt";
             int x = system(pingMasIP.c_str());
@@ -87,7 +100,7 @@ int main(int argc, char *argv[]) {
             cout << "paquetes transmitidos: " << monitorizaciones[i].paquetesTransmitidos<< endl;
             cout << "paquetes recibidos: " << monitorizaciones[i].paquetesRecibidos << endl;
             cout << "paquetes perdidos: " << monitorizaciones[i].paquetesPerdidos << endl;
-        if(monitorizaciones[i].estado == true){
+        if(monitorizaciones[i].estado){
             cout << "estado: UP" << endl;
         }else{
             cout << "estado: DOWN" << endl;
