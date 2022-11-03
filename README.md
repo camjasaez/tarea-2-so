@@ -13,12 +13,7 @@ de conectividad y determinar el estado en que se encuentran cada uno de ellos.
 Para correr el proyecto se debe ejecutar el siguiente comando en la carpeta raiz del
 proyecto
 
-Primero se compila: 
-```bash
-make all
-```
-
-Luego se ejecuta:
+Se ejecuta:
 ```bash
 make run npaq=<numero de paquetes>
 ```
