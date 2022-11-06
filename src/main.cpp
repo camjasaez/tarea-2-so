@@ -4,107 +4,108 @@
 #include <stdlib.h> 
 #include <unistd.h> 
 #include <omp.h>
-#include <stdio.h>
 #include <vector>
 #include <string> 
 using namespace std;
 
+// Creacion de la clase Monitorizacion que contendrá los datos a monitorizar de cada IP
 class Monitorizacion {      
   public:          
-    string ip;        
+    string ip;
     string paquetesTransmitidos;
     string paquetesRecibidos;
     string paquetesPerdidos;
     bool estado; //(UP (1) = Disponible, DOWN (0)= NO disponible) 
 };
 
+// Funcion main que contiene el programa principal
 int main(int argc, char *argv[]) {
 
+    // Primera validacion de la cantidad de argumentos de entrada y formato correcto.
     if(argc != 3) {
         cout << "Error: Numero de argumentos incorrecto" << endl;
         cout << "Uso: " << argv[0] << " <nombre-fichero-de-ip>" <<" npaq=<cantidad-de-paquetes>" << endl;
         exit(-1);
     }
 
+    // Segunda validacion de la extension del fichero con las ips
     string nombreArchivo = argv[1];
     if(nombreArchivo.find(".txt") > nombreArchivo.length()) {
         cout << "Error: El fichero de ip no es un fichero de texto" << endl;
         exit(-1);
     }
 
-    if (atoi(argv[2]) <= 0) {
-        cout << "numero paquetes debe ser > 0\n";
+    //Tercera validacion de la cantidad de paquetes a enviar
+    int cantidadPaquetes = atoi(argv[2]);
+    if (cantidadPaquetes < 0) {
+        cout << "npaq debe ser un numero > 0\n";
         return -1;
     }
-    int cantidadPaquetes = atoi(argv[2]);
 
     ifstream archivo(nombreArchivo.c_str());
     string linea;
-    int cantidadHebras = 0;
-    std::vector<std::string> arr;
+
+    int cantidadHebras = 0; // Contador de hebras que tendra el programa
+    std::vector<std::string> arregloIPs; // Arreglo que contendra las IPs a monitorizar
+    // Lectura del fichero de ip y almacenamiento en un vector de cada una de las ip
     while (getline(archivo, linea)) {
-        arr.push_back(linea);
+        arregloIPs.push_back(linea);
         cantidadHebras++;
     }
     cout << "Cantidad de hebras: ";
     cout << cantidadHebras << endl;
 
-    std::string cantidadPaquetesString = std::to_string(cantidadPaquetes);
-    string ping = "ping -q -c" + cantidadPaquetesString + " ";
+    string ping = "ping -q -c" + std::to_string(cantidadPaquetes) + " "; // String que almacena el comando ping
+
     cout << "Ejecutando por hebras..." << endl;
     cout << "------------------------------------------" << endl;
     
+    // Instancia de la clase Monitorizacion, que contendrá los datos a monitorizar de cada IP
     Monitorizacion monitorizaciones[cantidadHebras];
-    std::string ip;
-    std::string paquetesTransmitidos;
-    std::string paquetesRecibidos;
-    std::string paquetesPerdidos;
-
-    #pragma omp parallel for num_threads(cantidadHebras)
-        for(int i = 0; i < cantidadHebras; i++){
-            string pingMasIP = ping + arr[i] + " > logs/ping" + std::to_string(i) + ".txt";
+    int i = 0;
+    #pragma omp parallel for lastprivate(i) num_threads(cantidadHebras)
+        for(i = 0; i < cantidadHebras; i++){
+            string pingMasIP = ping + arregloIPs[i] + " > logs/ping" + std::to_string(i) + ".txt";
             int x = system(pingMasIP.c_str());
+
             std::string nombreArchivo = "logs/ping"+std::to_string(i)+".txt";
             std::ifstream file(nombreArchivo);
         
             while(getline(file, linea)){
                 if (linea.find("PING") != std::string::npos){
-                    ip = linea.substr(5, linea.find("(")-5);
-                    monitorizaciones[i].ip = ip;
+                    monitorizaciones[i].ip = linea.substr(5, linea.find("(")-5);
                 }
 
                 if(linea.find("packets")!= std::string::npos){
-                    paquetesTransmitidos = linea.substr(0, linea.find(" "));
-                    monitorizaciones[i].paquetesTransmitidos = paquetesTransmitidos;
+                    monitorizaciones[i].paquetesTransmitidos = linea.substr(0, linea.find(" "));
+                
+                    monitorizaciones[i].paquetesRecibidos = linea.substr(linea.find(",")+1, linea.find("received")-linea.find(",")-1);
+                    
+                    monitorizaciones[i].paquetesPerdidos = linea.substr(linea.find("received")+9, linea.find("packet loss")-linea.find("received")-9);
+                }
+                
+            }
 
-                    paquetesRecibidos = linea.substr(linea.find(",")+1, linea.find("received")-linea.find(",")-1);
-                    monitorizaciones[i].paquetesRecibidos = paquetesRecibidos;
-                    int paquetes = stoi(paquetesRecibidos);
+                    int paquetes = stoi(monitorizaciones[i].paquetesRecibidos);
                     if(paquetes == 0){
                         monitorizaciones[i].estado = false;
                     }else{
                         monitorizaciones[i].estado = true;
                     }
 
-                    paquetesPerdidos = linea.substr(linea.find("received")+9, linea.find("packet loss")-linea.find("received")-9);
-                    monitorizaciones[i].paquetesPerdidos = paquetesPerdidos;
-
-                }
-            }
-        }
-
-        for(int i = 0; i<cantidadHebras; i++){
-            cout << "ip: " << monitorizaciones[i].ip << endl;
+            cout << "IP: " << monitorizaciones[i].ip << endl;
             cout << "paquetes transmitidos: " << monitorizaciones[i].paquetesTransmitidos<< endl;
             cout << "paquetes recibidos: " << monitorizaciones[i].paquetesRecibidos << endl;
             cout << "paquetes perdidos: " << monitorizaciones[i].paquetesPerdidos << endl;
-        if(monitorizaciones[i].estado){
+            if(monitorizaciones[i].estado){
             cout << "estado: UP" << endl;
-        }else{
-            cout << "estado: DOWN" << endl;
+            }else{
+                cout << "estado: DOWN" << endl;
+            }
+            cout << "------------------------------------------" << endl;
+            string toRemove = "rm logs/ping"+std::to_string(i)+".txt";
+            system(toRemove.c_str());
         }
-        cout << "------------------------------------------" << endl;
-    }
         
     cout << "Fin del programa" << endl;
     return 0;
