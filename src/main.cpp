@@ -7,6 +7,7 @@
 #include <omp.h>
 #include <vector>
 #include <string> 
+#include <iomanip>
 using namespace std;
 
 // Creacion de la clase Monitorizacion que contendrá los datos a monitorizar de cada IP
@@ -53,13 +54,25 @@ int main(int argc, char *argv[]) {
         arregloIPs.push_back(linea);
         cantidadHebras++;
     }
+
     cout << "Cantidad de hebras: ";
     cout << cantidadHebras << endl;
+
+    //Pequeña funcionalidad que nos ayudar a acalcular el ping mas largo, para luego poder mostrarlo con el formato correcto.
+    int pingMasLargo= arregloIPs[0].length();; // Variable auxiliar que contendra el tamaño del ping mas largo de todas las hebras, para efectos practicos al mostrar los resultados.
+    for(int i = 1; i < cantidadHebras; i++) {
+        if(pingMasLargo < arregloIPs[i].length()) {
+            pingMasLargo = arregloIPs[i].length();
+        }
+    }
+   
 
     string ping = "ping -q -c" + std::to_string(cantidadPaquetes) + " "; // String que almacena el comando ping
     archivo.close();
     cout << "Ejecutando por hebras..." << endl;
-    cout << "------------------------------------------" << endl;
+    cout << "------------------------------------------------" << endl;
+    cout << "IP     " << std::setw(pingMasLargo)  << "Trans." << std::setw(8)  << "Rec."<< std::setw(9)  << "Perd."<< std::setw(11) << " Estado\n";
+    cout << "================================================\n";
     
     // Instancia de la clase Monitorizacion, que contendrá los datos a monitorizar de cada IP
     Monitorizacion monitorizaciones[cantidadHebras];
@@ -69,11 +82,16 @@ int main(int argc, char *argv[]) {
         for(i = 0; i < cantidadHebras; i++){
             //Creamos los archivos logs para cada ping que leeremos mas adelante.
             string pingMasIP = ping + arregloIPs[i] + " > logs/ping" + std::to_string(i) + ".txt";
-            int x = system(pingMasIP.c_str());
+             int sysCallResponse = system(pingMasIP.c_str());
 
             std::string nombreArchivo = "logs/ping"+std::to_string(i)+".txt";
             std::ifstream file(nombreArchivo);
-        
+
+            //  Para verificar que el comando de ping es valido, podemos recibir dos respuestas principales, el 0 que indica 
+            //  que el comando se ejecuto correctamente y recibe respuesta del servidor y  
+            // que se ejecuta correctamente pero no recibe respuesta del serivdor 256. Si la respuesta es diferente a 0 o 256, 
+            // el comando ping ejecutado no es valido, ya sea porque el ping ingresado no existe o a sido ingresado de manera erronea.
+            if(sysCallResponse == 0 || sysCallResponse == 256){
             // Bloqueamos el hilo de ejecucion para que no se produzcan errores de lectura y escritura
             myMutex.lock();
             //Leemos el archivo creado y guardamos los datos en la clase Monitorizacion
@@ -93,33 +111,31 @@ int main(int argc, char *argv[]) {
                 }
                 
             }
-
+            // Verificamos si la ip esta disponible o no
                 int paquetes = stoi(monitorizaciones[i].paquetesRecibidos);
                 if(paquetes == 0){
                     monitorizaciones[i].estado = false;
                 }else{
                     monitorizaciones[i].estado = true;
-                }
-            // Desbloqueamos el hilo de ejecucion
-           myMutex.unlock();
-             
+                }      
+            
+                      
             // Mostramos por pantalla los datos de cada coamndo ping, que estan almacenados en nuestra estructura de datos
             // Se iran mostrando a medida de que vayan terminando su ejecucion de hebras. 
-            cout << "IP: " << monitorizaciones[i].ip << endl;
-            cout << "paquetes transmitidos: " << monitorizaciones[i].paquetesTransmitidos<< endl;
-            cout << "paquetes recibidos: " << monitorizaciones[i].paquetesRecibidos << endl;
-            cout << "paquetes perdidos: " << monitorizaciones[i].paquetesPerdidos << endl;
-            if(monitorizaciones[i].estado){
-            cout << "estado: UP" << endl;
-            }else{
-                cout << "estado: DOWN" << endl;
-            }
-            cout << "------------------------------------------" << endl;
+            cout << monitorizaciones[i].ip << std::setw((pingMasLargo- arregloIPs[i].length())+3) // ajustamos el ping mas largo para que se vea bien en la pantalla.
+            << monitorizaciones[i].paquetesTransmitidos << std::setw(10)
+            << monitorizaciones[i].paquetesRecibidos << std::setw(10)
+            << monitorizaciones[i].paquetesPerdidos << std::setw(10)
+            << (monitorizaciones[i].estado ? "UP" : "DOWN") << endl;
+            // Desbloqueamos el hilo de ejecucion
+            myMutex.unlock();
+        
             //Eliminamos los archivos creados para cada ping que ya no utiliaremos.
             string toRemove = "rm logs/ping"+std::to_string(i)+".txt";
             system(toRemove.c_str());
+            }
         }
-        
+    cout << "------------------------------------------------" << endl;
     cout << "Fin del programa" << endl;
     return 0;
 }
