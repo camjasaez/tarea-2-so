@@ -1,3 +1,4 @@
+#include <mutex>
 #include <thread>
 #include <iostream>
 #include <fstream>
@@ -56,26 +57,33 @@ int main(int argc, char *argv[]) {
     cout << cantidadHebras << endl;
 
     string ping = "ping -q -c" + std::to_string(cantidadPaquetes) + " "; // String que almacena el comando ping
-
+    archivo.close();
     cout << "Ejecutando por hebras..." << endl;
     cout << "------------------------------------------" << endl;
     
     // Instancia de la clase Monitorizacion, que contendrá los datos a monitorizar de cada IP
     Monitorizacion monitorizaciones[cantidadHebras];
+    std::mutex myMutex;
     int i = 0;
-    #pragma omp parallel for lastprivate(i) num_threads(cantidadHebras)
+    #pragma omp parallel for num_threads(cantidadHebras) //Dividimos la ejecucion de nuestro ciclo for en hebras
         for(i = 0; i < cantidadHebras; i++){
+            //Creamos los archivos logs para cada ping que leeremos mas adelante.
             string pingMasIP = ping + arregloIPs[i] + " > logs/ping" + std::to_string(i) + ".txt";
             int x = system(pingMasIP.c_str());
 
             std::string nombreArchivo = "logs/ping"+std::to_string(i)+".txt";
             std::ifstream file(nombreArchivo);
         
+            // Bloqueamos el hilo de ejecucion para que no se produzcan errores de lectura y escritura
+            myMutex.lock();
+            //Leemos el archivo creado y guardamos los datos en la clase Monitorizacion
             while(getline(file, linea)){
+                //Buscamos en el archivo ping la ip
                 if (linea.find("PING") != std::string::npos){
                     monitorizaciones[i].ip = linea.substr(5, linea.find("(")-5);
                 }
 
+                //Buscamos en el archivo ping la cantidad de paquetes transmitidos, recibidos y perdidos
                 if(linea.find("packets")!= std::string::npos){
                     monitorizaciones[i].paquetesTransmitidos = linea.substr(0, linea.find(" "));
                 
@@ -86,13 +94,17 @@ int main(int argc, char *argv[]) {
                 
             }
 
-                    int paquetes = stoi(monitorizaciones[i].paquetesRecibidos);
-                    if(paquetes == 0){
-                        monitorizaciones[i].estado = false;
-                    }else{
-                        monitorizaciones[i].estado = true;
-                    }
-
+                int paquetes = stoi(monitorizaciones[i].paquetesRecibidos);
+                if(paquetes == 0){
+                    monitorizaciones[i].estado = false;
+                }else{
+                    monitorizaciones[i].estado = true;
+                }
+            // Desbloqueamos el hilo de ejecucion
+           myMutex.unlock();
+             
+            // Mostramos por pantalla los datos de cada coamndo ping, que estan almacenados en nuestra estructura de datos
+            // Se iran mostrando a medida de que vayan terminando su ejecucion de hebras. 
             cout << "IP: " << monitorizaciones[i].ip << endl;
             cout << "paquetes transmitidos: " << monitorizaciones[i].paquetesTransmitidos<< endl;
             cout << "paquetes recibidos: " << monitorizaciones[i].paquetesRecibidos << endl;
@@ -103,6 +115,7 @@ int main(int argc, char *argv[]) {
                 cout << "estado: DOWN" << endl;
             }
             cout << "------------------------------------------" << endl;
+            //Eliminamos los archivos creados para cada ping que ya no utiliaremos.
             string toRemove = "rm logs/ping"+std::to_string(i)+".txt";
             system(toRemove.c_str());
         }
